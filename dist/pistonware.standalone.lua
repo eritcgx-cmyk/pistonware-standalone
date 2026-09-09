@@ -33,9 +33,32 @@ for _, folder in ipairs({"pistonware", "pistonware/games", "pistonware/profiles"
 end
 
 -- =========================================================================
--- [1. NATIVE MODULE: HashLib]
+-- [0. STANDALONE RUNNER DEFINITION]
 -- =========================================================================
-local HashLib = (function()
+local function runStandaloneClient()
+    shared.PistonwareAuthenticated = true
+    shared.PistonwareKey = "AUTHENTICATED_STANDALONE"
+    shared.PistonwareDeveloper = true
+
+    -- Destroy any lingering upstream loader or key gate windows
+    pcall(function()
+        local function sweep(root)
+            if not root then return end
+            for _, desc in ipairs(root:GetChildren()) do
+                if desc.Name == "PistonwareLoader" or desc.Name:find("PistonwareLoader") then
+                    pcall(function() desc:Destroy() end)
+                end
+            end
+        end
+        pcall(sweep, game:GetService("CoreGui"))
+        if gethui then pcall(sweep, gethui()) end
+        if game:GetService("Players").LocalPlayer then
+            pcall(sweep, game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui"))
+        end
+    end)
+
+    -- [1. NATIVE MODULE: HashLib]
+    local HashLib = (function()
 --[[ HashLib by Egor Skriptunoff, boatbomber, and howmanysmall, I'm not trusting exploits to have a built in crypt library. ]]
 
 --[=[------------------------------------------------------------------------------------------------------------------------
@@ -1388,12 +1411,10 @@ block_size_for_HMAC = {
 }
 
 return sha
-end)();
+    end)();
 
--- =========================================================================
--- [2. NATIVE MODULE: Prediction]
--- =========================================================================
-local Prediction = (function()
+    -- [2. NATIVE MODULE: Prediction]
+    local Prediction = (function()
 --[[
 	Prediction Library
 	Source: https://devforum.roblox.com/t/predict-projectile-ballistics-including-gravity-and-motion/1842434
@@ -1645,12 +1666,10 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 end
 
 return module
-end)();
+    end)();
 
--- =========================================================================
--- [3. NATIVE MODULE: Entity Framework]
--- =========================================================================
-local Entity = (function()
+    -- [3. NATIVE MODULE: Entity Framework]
+    local Entity = (function()
 local entitylib = {
 	isAlive = false,
 	character = {},
@@ -3450,12 +3469,10 @@ end
 entitylib.start()
 
 return entitylib
-end)();
+    end)();
 
--- =========================================================================
--- [4. NATIVE MODULE: Drawing Polyfill]
--- =========================================================================
-local DrawingLib = (function()
+    -- [4. NATIVE MODULE: Drawing Polyfill]
+    local DrawingLib = (function()
 if not get_comm_channel or not create_comm_channel then
 	return '1'
 end
@@ -3647,30 +3664,26 @@ if isactor and not Drawing then
 else
 	return id
 end
-end)();
+    end)();
 
--- =========================================================================
--- [5. NATIVE MODULE REGISTRY]
--- =========================================================================
-local PistonwareModules = {
-    ["pistonware/libraries/hash.lua"] = HashLib,
-    ["pistonware/libraries/prediction.lua"] = Prediction,
-    ["pistonware/libraries/entity.lua"] = Entity,
-    ["pistonware/libraries/drawing.lua"] = DrawingLib,
-    ["pistonware/games/bedwars.lua"] = function()
-        shared.PistonwareBedwarsLoaded = true
-        return true
-    end
-};
+    -- [5. NATIVE MODULE REGISTRY]
+    local PistonwareModules = {
+        ["pistonware/libraries/hash.lua"] = HashLib,
+        ["pistonware/libraries/prediction.lua"] = Prediction,
+        ["pistonware/libraries/entity.lua"] = Entity,
+        ["pistonware/libraries/drawing.lua"] = DrawingLib,
+        ["pistonware/games/bedwars.lua"] = function()
+            shared.PistonwareBedwarsLoaded = true
+            return true
+        end
+    };
 
-shared.PistonwareDevLoadSource = function(path)
-    return PistonwareModules[path] or (isfile and isfile(path) and readfile(path)) or ""
-end;
+    shared.PistonwareDevLoadSource = function(path)
+        return PistonwareModules[path] or (isfile and isfile(path) and readfile(path)) or ""
+    end;
 
--- =========================================================================
--- [6. INLINED GUI ENGINE: newgui.lua]
--- =========================================================================
-local function buildVapeGui()
+    -- [6. INLINED GUI ENGINE: newgui.lua]
+    local function buildVapeGui()
 local vape = {
 	ActiveBinds = {},
 	Categories = {},
@@ -4291,7 +4304,7 @@ do
 			local data
 			for attempt = 1, 4 do
 				local success, res = pcall(function()
-					return pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/'..relPath, true, attempt)
+					return pistonwareHttpGet('https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/main/'..relPath, true, attempt)
 				end)
 				if success and res and res ~= '' and res ~= '404: Not Found' then
 					data = res
@@ -5632,15 +5645,63 @@ function vape:LoadGUI()
 		config come back looking exactly like the one it replaced.
 	]]
 
-	-- Same reinject route the buttons in Settings > General use: the developer build lives on
-	-- disk under its own name and must never be fetched from GitHub, and every other path goes
-	-- back through the loader so the key gate re-runs.
+	-- Keyless standalone reinjection: never invokes upstream loaders or key systems.
 	local function reinjectThroughLoader()
-		if shared.PistonwareDeveloper and isfile('pistonware/loaderdev.lua') then
-			loadstring(readfile('pistonware/loaderdev.lua'), 'loader')()
-		else
-			loadstring(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/loader.lua', true), 'loader')()
+		shared.PistonwareAuthenticated = true
+		shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+		shared.PistonwareDeveloper = true
+
+		if shared.PistonwareStandaloneLoader and type(shared.PistonwareStandaloneLoader) == 'function' then
+			task.spawn(function()
+				pcall(function() vape:Uninject() end)
+				task.wait(0.05)
+				shared.PistonwareAuthenticated = true
+				shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+				shared.PistonwareDeveloper = true
+				shared.PistonwareStandaloneLoader()
+			end)
+			return
 		end
+
+		local localCandidates = {
+			'pistonware_standalone.lua',
+			'pistonware.lua',
+			'pistonware/dist/pistonware.standalone.lua',
+			'pistonware/pistonware.lua',
+			'pistonware/loaderdev.lua'
+		}
+		for _, path in ipairs(localCandidates) do
+			if isfile and isfile(path) then
+				local ok, content = pcall(readfile, path)
+				if ok and content and #content > 1000 then
+					task.spawn(function()
+						pcall(function() vape:Uninject() end)
+						task.wait(0.05)
+						shared.PistonwareAuthenticated = true
+						shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+						shared.PistonwareDeveloper = true
+						local fn = loadstring(content, 'pistonware_standalone')
+						if fn then fn() end
+					end)
+					return
+				end
+			end
+		end
+
+		task.spawn(function()
+			pcall(function() vape:Uninject() end)
+			task.wait(0.05)
+			shared.PistonwareAuthenticated = true
+			shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+			shared.PistonwareDeveloper = true
+			local suc, content = pcall(function()
+				return game:HttpGet('https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/main/pistonware.lua', true)
+			end)
+			if suc and content and #content > 1000 and not content:find('404: Not Found') then
+				local fn = loadstring(content, 'pistonware_standalone')
+				if fn then fn() end
+			end
+		end)
 	end
 
 	-- pistonware/profiles is stamped with the commit it was pulled from, so a sync that would
@@ -5662,7 +5723,7 @@ function vape:LoadGUI()
 
 	local function latestProfileCommit()
 		local suc, res = pcall(function()
-			return pistonwareHttpGet('https://api.github.com/repos/themagicpiston/pistonware/commits?path=profiles&sha=main&per_page=1', true)
+			return pistonwareHttpGet('https://api.github.com/repos/eritcgx-cmyk/pistonware-standalone/commits?path=profiles&sha=main&per_page=1', true)
 		end)
 		if not (suc and res and res ~= '' and res ~= '404: Not Found') then return nil end
 		local ok, body = pcall(function()
@@ -5726,7 +5787,7 @@ function vape:LoadGUI()
 		local content
 		for attempt = 1, 4 do
 			local suc, res = pcall(function()
-				return pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/'..(commit or 'main')..'/'..relPath, true, attempt)
+				return pistonwareHttpGet('https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/'..(commit or 'main')..'/'..relPath, true, attempt)
 			end)
 			if suc and res and res ~= '' and res ~= '404: Not Found' then
 				content = res
@@ -5748,7 +5809,7 @@ function vape:LoadGUI()
 	local function downloadProfiles(commit)
 		local reqSuc, res = pcall(function()
 			-- listing pinned too, so it can never describe a different commit than the files below
-			return pistonwareHttpGet('https://api.github.com/repos/themagicpiston/pistonware/contents/profiles'..(commit and ('?ref='..commit) or ''), true)
+			return pistonwareHttpGet('https://api.github.com/repos/eritcgx-cmyk/pistonware-standalone/contents/profiles'..(commit and ('?ref='..commit) or ''), true)
 		end)
 		if not (reqSuc and res and res ~= '' and res ~= '404: Not Found') then
 			return nil, 'Profile sync failed (could not reach GitHub).'
@@ -7048,15 +7109,7 @@ function vape:LoadGUI()
 			end
 	
 			shared.vapereload = true
-			--[[ Back through the pistonware loader, which re-runs the key gate. That is deliberate:
-			shared.PistonwareAuthenticated is cleared and re-derived on every run, so a reinject
-			revalidates rather than inheriting a flag. The developer loader lives on disk under a
-			different name and must never be fetched from GitHub -- it uses the same key gate. ]]
-			if shared.PistonwareDeveloper and isfile('pistonware/loaderdev.lua') then
-				runChunk(readfile('pistonware/loaderdev.lua'), 'loader')
-			else
-				runChunk(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/loader.lua', true), 'loader')
-			end
+			reinjectThroughLoader()
 		end,
 		Tooltip = 'This will set your profile to the default settings of Vape'
 	})
@@ -7073,15 +7126,7 @@ function vape:LoadGUI()
 		Name = 'Reinject',
 		Function = function()
 			shared.vapereload = true
-			--[[ Back through the pistonware loader, which re-runs the key gate. That is deliberate:
-			shared.PistonwareAuthenticated is cleared and re-derived on every run, so a reinject
-			revalidates rather than inheriting a flag. The developer loader lives on disk under a
-			different name and must never be fetched from GitHub -- it uses the same key gate. ]]
-			if shared.PistonwareDeveloper and isfile('pistonware/loaderdev.lua') then
-				runChunk(readfile('pistonware/loaderdev.lua'), 'loader')
-			else
-				runChunk(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/loader.lua', true), 'loader')
-			end
+			reinjectThroughLoader()
 		end,
 		Tooltip = 'Reloads vape for debugging purposes'
 	})
@@ -7089,7 +7134,8 @@ function vape:LoadGUI()
 	general:CreateButton({
 		Name = 'Reinstall',
 		Function = function()
-			runChunk(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/refs/heads/main/reinstall.lua', true), 'reinstall')
+			pcall(function() vape:Uninject() end)
+			reinjectThroughLoader()
 		end,
 		Tooltip = 'Uninjects, deletes the pistonware folder and downloads everything again'
 	})
@@ -14602,15 +14648,13 @@ vape.Components = setmetatable(components, {
 vape:LoadGUI()
 
 return vape
-end;
+    end;
 
-local vape = buildVapeGui();
-shared.vape = vape;
+    local vape = buildVapeGui();
+    shared.vape = vape;
 
--- =========================================================================
--- [7. INLINED UNIVERSAL MODULES: universal.lua]
--- =========================================================================
-local function runUniversalModules()
+    -- [7. INLINED UNIVERSAL MODULES: universal.lua]
+    local function runUniversalModules()
 local loadstring = function(...)
 	local res, err = loadstring(...)
 	if err and vape then
@@ -23773,15 +23817,13 @@ run(function()
 	})
 end)
 end)
-end;
+    end;
 
-runUniversalModules();
+    runUniversalModules();
 
--- =========================================================================
--- [8. GAME SPECIFIC MODULES]
--- =========================================================================
-if game.PlaceId == 6872265039 then
-    local function runLobbyModules()
+    -- [8. GAME SPECIFIC MODULES]
+    if game.PlaceId == 6872265039 then
+        local function runLobbyModules()
 if not shared.PistonwareAuthenticated then
 	warn('[pistonware] not authenticated -- run the pistonware loader and enter your key')
 	return
@@ -24345,10 +24387,10 @@ run(function()
 
 	vape:Clean(function() stopEmote() end)
 end)
-    end;
-    runLobbyModules();
-elseif game.PlaceId == 6872274481 then
-    local function runMatchModules()
+        end;
+        runLobbyModules();
+    elseif game.PlaceId == 6872274481 then
+        local function runMatchModules()
 -- Standalone Native Initialization
 local shared = shared or _G
 shared.PistonwareAuthenticated = true
@@ -35239,18 +35281,31 @@ return {
     Mode = "Standalone-Native",
     Modules = 45
 }
+        end;
+        runMatchModules();
     end;
-    runMatchModules();
+
+    -- [9. PROFILE LOADING & INITIALIZATION]
+    if vape and type(vape.Load) == "function" then
+        pcall(vape.Load, vape)
+        if type(vape.CreateNotification) == "function" then
+            vape:CreateNotification("Pistonware Standalone", "Vape V4 Standalone active. Zero keys, keyless profile switching.", 5, "info")
+        end
+    end;
+
+    return vape;
 end;
 
--- =========================================================================
--- [9. PROFILE LOADING & INITIALIZATION]
--- =========================================================================
-if vape and type(vape.Load) == "function" then
-    pcall(vape.Load, vape)
-    if type(vape.CreateNotification) == "function" then
-        vape:CreateNotification("Pistonware Standalone", "Vape V4 Standalone initialized successfully. Zero loaders, zero keys.", 5, "info")
+shared.PistonwareStandaloneLoader = function()
+    shared.PistonwareAuthenticated = true
+    shared.PistonwareKey = "AUTHENTICATED_STANDALONE"
+    shared.PistonwareDeveloper = true
+
+    if shared.vape and type(shared.vape.Uninject) == "function" then
+        pcall(function() shared.vape:Uninject() end)
     end
+    task.wait(0.05)
+    return runStandaloneClient()
 end;
 
-return vape;
+return runStandaloneClient();

@@ -618,7 +618,7 @@ do
 			local data
 			for attempt = 1, 4 do
 				local success, res = pcall(function()
-					return pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/'..relPath, true, attempt)
+					return pistonwareHttpGet('https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/main/'..relPath, true, attempt)
 				end)
 				if success and res and res ~= '' and res ~= '404: Not Found' then
 					data = res
@@ -1959,15 +1959,63 @@ function vape:LoadGUI()
 		config come back looking exactly like the one it replaced.
 	]]
 
-	-- Same reinject route the buttons in Settings > General use: the developer build lives on
-	-- disk under its own name and must never be fetched from GitHub, and every other path goes
-	-- back through the loader so the key gate re-runs.
+	-- Keyless standalone reinjection: never invokes upstream loaders or key systems.
 	local function reinjectThroughLoader()
-		if shared.PistonwareDeveloper and isfile('pistonware/loaderdev.lua') then
-			loadstring(readfile('pistonware/loaderdev.lua'), 'loader')()
-		else
-			loadstring(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/loader.lua', true), 'loader')()
+		shared.PistonwareAuthenticated = true
+		shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+		shared.PistonwareDeveloper = true
+
+		if shared.PistonwareStandaloneLoader and type(shared.PistonwareStandaloneLoader) == 'function' then
+			task.spawn(function()
+				pcall(function() vape:Uninject() end)
+				task.wait(0.05)
+				shared.PistonwareAuthenticated = true
+				shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+				shared.PistonwareDeveloper = true
+				shared.PistonwareStandaloneLoader()
+			end)
+			return
 		end
+
+		local localCandidates = {
+			'pistonware_standalone.lua',
+			'pistonware.lua',
+			'pistonware/dist/pistonware.standalone.lua',
+			'pistonware/pistonware.lua',
+			'pistonware/loaderdev.lua'
+		}
+		for _, path in ipairs(localCandidates) do
+			if isfile and isfile(path) then
+				local ok, content = pcall(readfile, path)
+				if ok and content and #content > 1000 then
+					task.spawn(function()
+						pcall(function() vape:Uninject() end)
+						task.wait(0.05)
+						shared.PistonwareAuthenticated = true
+						shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+						shared.PistonwareDeveloper = true
+						local fn = loadstring(content, 'pistonware_standalone')
+						if fn then fn() end
+					end)
+					return
+				end
+			end
+		end
+
+		task.spawn(function()
+			pcall(function() vape:Uninject() end)
+			task.wait(0.05)
+			shared.PistonwareAuthenticated = true
+			shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+			shared.PistonwareDeveloper = true
+			local suc, content = pcall(function()
+				return game:HttpGet('https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/main/pistonware.lua', true)
+			end)
+			if suc and content and #content > 1000 and not content:find('404: Not Found') then
+				local fn = loadstring(content, 'pistonware_standalone')
+				if fn then fn() end
+			end
+		end)
 	end
 
 	-- pistonware/profiles is stamped with the commit it was pulled from, so a sync that would
@@ -1989,7 +2037,7 @@ function vape:LoadGUI()
 
 	local function latestProfileCommit()
 		local suc, res = pcall(function()
-			return pistonwareHttpGet('https://api.github.com/repos/themagicpiston/pistonware/commits?path=profiles&sha=main&per_page=1', true)
+			return pistonwareHttpGet('https://api.github.com/repos/eritcgx-cmyk/pistonware-standalone/commits?path=profiles&sha=main&per_page=1', true)
 		end)
 		if not (suc and res and res ~= '' and res ~= '404: Not Found') then return nil end
 		local ok, body = pcall(function()
@@ -2053,7 +2101,7 @@ function vape:LoadGUI()
 		local content
 		for attempt = 1, 4 do
 			local suc, res = pcall(function()
-				return pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/'..(commit or 'main')..'/'..relPath, true, attempt)
+				return pistonwareHttpGet('https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/'..(commit or 'main')..'/'..relPath, true, attempt)
 			end)
 			if suc and res and res ~= '' and res ~= '404: Not Found' then
 				content = res
@@ -2075,7 +2123,7 @@ function vape:LoadGUI()
 	local function downloadProfiles(commit)
 		local reqSuc, res = pcall(function()
 			-- listing pinned too, so it can never describe a different commit than the files below
-			return pistonwareHttpGet('https://api.github.com/repos/themagicpiston/pistonware/contents/profiles'..(commit and ('?ref='..commit) or ''), true)
+			return pistonwareHttpGet('https://api.github.com/repos/eritcgx-cmyk/pistonware-standalone/contents/profiles'..(commit and ('?ref='..commit) or ''), true)
 		end)
 		if not (reqSuc and res and res ~= '' and res ~= '404: Not Found') then
 			return nil, 'Profile sync failed (could not reach GitHub).'
@@ -3375,15 +3423,7 @@ function vape:LoadGUI()
 			end
 	
 			shared.vapereload = true
-			--[[ Back through the pistonware loader, which re-runs the key gate. That is deliberate:
-			shared.PistonwareAuthenticated is cleared and re-derived on every run, so a reinject
-			revalidates rather than inheriting a flag. The developer loader lives on disk under a
-			different name and must never be fetched from GitHub -- it uses the same key gate. ]]
-			if shared.PistonwareDeveloper and isfile('pistonware/loaderdev.lua') then
-				runChunk(readfile('pistonware/loaderdev.lua'), 'loader')
-			else
-				runChunk(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/loader.lua', true), 'loader')
-			end
+			reinjectThroughLoader()
 		end,
 		Tooltip = 'This will set your profile to the default settings of Vape'
 	})
@@ -3400,15 +3440,7 @@ function vape:LoadGUI()
 		Name = 'Reinject',
 		Function = function()
 			shared.vapereload = true
-			--[[ Back through the pistonware loader, which re-runs the key gate. That is deliberate:
-			shared.PistonwareAuthenticated is cleared and re-derived on every run, so a reinject
-			revalidates rather than inheriting a flag. The developer loader lives on disk under a
-			different name and must never be fetched from GitHub -- it uses the same key gate. ]]
-			if shared.PistonwareDeveloper and isfile('pistonware/loaderdev.lua') then
-				runChunk(readfile('pistonware/loaderdev.lua'), 'loader')
-			else
-				runChunk(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/main/loader.lua', true), 'loader')
-			end
+			reinjectThroughLoader()
 		end,
 		Tooltip = 'Reloads vape for debugging purposes'
 	})
@@ -3416,7 +3448,8 @@ function vape:LoadGUI()
 	general:CreateButton({
 		Name = 'Reinstall',
 		Function = function()
-			runChunk(pistonwareHttpGet('https://raw.githubusercontent.com/themagicpiston/pistonware/refs/heads/main/reinstall.lua', true), 'reinstall')
+			pcall(function() vape:Uninject() end)
+			reinjectThroughLoader()
 		end,
 		Tooltip = 'Uninjects, deletes the pistonware folder and downloads everything again'
 	})

@@ -36,13 +36,23 @@ pistonware-repo/
 
 To execute in any standard Roblox executor (Volt, Synapse, Script-Ware, Macsploit):
 
-### Direct Standalone Bundle (Recommended)
-Execute `dist/pistonware.standalone.lua` directly. It runs completely offline with zero HTTP calls:
+### Direct Remote Loadstring (100% Keyless)
+Execute directly via GitHub without saving files locally:
+
+```lua
+-- Standalone Keyless Clean Source:
+loadstring(game:HttpGet("https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/main/pistonware.lua", true))()
+
+-- Standalone Keyless Obfuscated Distribution:
+loadstring(game:HttpGet("https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/main/pistonware_obfuscated.lua", true))()
+```
+
+### Local Workspace Execution
+Execute `dist/pistonware.standalone.lua` directly from your executor's workspace folder:
 
 ```lua
 -- Single-file inlined native engine:
--- Load dist/pistonware.standalone.lua from local workspace or repo
-loadstring(readfile("pistonware/dist/pistonware.standalone.lua"))()
+loadstring(readfile("pistonware_standalone.lua"))()
 ```
 
 ### Modular Repository Execution

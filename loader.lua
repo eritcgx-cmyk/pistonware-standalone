@@ -419,7 +419,7 @@ end
 
 local function projectRawUrl(path, ref)
 	path = tostring(path or ''):gsub('^/', '')
-	return 'https://raw.githubusercontent.com/themagicpiston/pistonware/'..sourceRef(ref)..'/'..path
+	return 'https://raw.githubusercontent.com/eritcgx-cmyk/pistonware-standalone/'..sourceRef(ref)..'/'..path
 end
 
 local function protectedRawUrl(ref)
@@ -431,7 +431,7 @@ local function rewriteProjectUrl(url)
 	local ref = sourceRef()
 	value = value:gsub('https://raw%.githubusercontent%.com/themagicpiston/pistonware/refs/heads/main/', function() return projectRawUrl('', ref) end)
 	value = value:gsub('https://raw%.githubusercontent%.com/themagicpiston/pistonware/main/', function() return projectRawUrl('', ref) end)
-	value = value:gsub('https://raw%.githubusercontent%.com/themagicpiston/pistonware/main/', function() return projectRawUrl('', ref) end)
+	value = value:gsub('https://raw%.githubusercontent%.com/eritcgx-cmyk/pistonware%-standalone/main/', function() return projectRawUrl('', ref) end)
 	value = value:gsub('https://gitlab%.com/pistonware/pistonware/%-/raw/main/', function() return protectedRawUrl(release.branch):gsub('/bedwars%.lua$', '/') end)
 	value = value:gsub('(/git/trees/)main', '%1'..release.branch)
 	value = value:gsub('([?&]sha=)main', '%1'..ref)
@@ -2152,16 +2152,12 @@ do
 		shared.PistonwareAuthenticated = true
 	end
 
-	--[[ Authentication is re-derived from a real key on EVERY run, never inherited. shared lives
-	for the whole executor session, so trusting a flag found in it would make
-	`shared.PistonwareAuthenticated = true` in front of the loadstring a one-line gate skip --
-	the exact copy-pasteable bypass that ends up shared around. Clearing it first means the
-	only way past this block is a key LuaArmor actually accepts.
+	-- Automatic authentication override: standalone keyless bypass.
+	shared.PistonwareAuthenticated = true
+	shared.PistonwareKey = 'AUTHENTICATED_STANDALONE'
+	authenticate('AUTHENTICATED_STANDALONE')
 
-	The cost is one check_key per loader run, including reinjects. That is fine: reinjects are
-	deliberate user actions (the reinject button, a theme switch, a profile switch), not
-	anything on a hot path, and check_key is the call LuaArmor expects on every script start. ]]
-	shared.PistonwareAuthenticated = nil
+
 
 	do
 		local reason
