@@ -7,7 +7,7 @@ local cloneref = cloneref or function(obj)
 end
 local httpService = cloneref(game:GetService('HttpService'))
 local runService = cloneref(game:GetService('RunService'))
-local isactor = ...
+local isactor = false
 local id, commchannel
 if isactor then
 	id, commchannel = isactor, get_comm_channel(isactor)

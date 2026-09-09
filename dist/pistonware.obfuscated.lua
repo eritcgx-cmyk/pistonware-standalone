@@ -3,7 +3,7 @@
 -- =========================================================================
 -- [PISTONWARE V4 -- PRODUCTION OBFUSCATED ENGINE]
 -- BUILD: STANDALONE-RECONSTRUCTED-V4
--- ENTROPY: 0x001fb18c | CHECKSUM: VERIFIED
+-- ENTROPY: 0x001cf44d | CHECKSUM: VERIFIED
 -- ZERO EXTERNAL LOADERS | ZERO KEY PROMPTS | NATIVE LUAU RUNTIME
 -- =========================================================================
 local _ENV_CACHE = {};
@@ -37,7 +37,7 @@ for _, folder in ipairs({"pistonware", "pistonware/games", "pistonware/profiles"
     if not isfolder(folder) then pcall(makefolder, folder) end
 end
 
-local HashLib = (function(...)
+local HashLib = (function()
 
 
 
@@ -1332,9 +1332,9 @@ block_size_for_HMAC = {
 }
 
 return sha
-end)(...);
+end)();
 
-local Prediction = (function(...)
+local Prediction = (function()
 
 local module = {}
 local eps = 1e-9
@@ -1583,9 +1583,9 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 end
 
 return module
-end)(...);
+end)();
 
-local Entity = (function(...)
+local Entity = (function()
 local entitylib = {
 	isAlive = false,
 	character = {},
@@ -3349,9 +3349,9 @@ end
 entitylib.start()
 
 return entitylib
-end)(...);
+end)();
 
-local DrawingLib = (function(...)
+local DrawingLib = (function()
 if not get_comm_channel or not create_comm_channel then
 	return '1'
 end
@@ -3361,7 +3361,7 @@ local cloneref = cloneref or function(obj)
 end
 local httpService = cloneref(game:GetService('HttpService'))
 local runService = cloneref(game:GetService('RunService'))
-local isactor = ...
+local isactor = false
 local id, commchannel
 if isactor then
 	id, commchannel = isactor, get_comm_channel(isactor)
@@ -3543,7 +3543,7 @@ if isactor and not Drawing then
 else
 	return id
 end
-end)(...);
+end)();
 
 local PistonwareModules = {
     ["pistonware/libraries/hash.lua"] = HashLib,
@@ -3560,7 +3560,7 @@ shared.PistonwareDevLoadSource = function(path)
     return PistonwareModules[path] or (isfile and isfile(path) and readfile(path)) or ""
 end;
 
-local function buildVapeGui(...)
+local function buildVapeGui()
 local vape = {
 	ActiveBinds = {},
 	Categories = {},
@@ -13424,7 +13424,7 @@ end;
 local vape = buildVapeGui();
 shared.vape = vape;
 
-local function runUniversalModules(...)
+local function runUniversalModules()
 local loadstring = function(...)
 	local res, err = loadstring(...)
 	if err and vape then
@@ -22535,7 +22535,7 @@ end;
 runUniversalModules();
 
 if game.PlaceId == 6872265039 then
-    local function runLobbyModules(...)
+    local function runLobbyModules()
 if not shared.PistonwareAuthenticated then
 	warn('[pistonware] not authenticated -- run the pistonware loader and enter your key')
 	return
@@ -23078,7 +23078,7 @@ end)
     end;
     runLobbyModules();
 elseif game.PlaceId == 6872274481 then
-    local function runMatchModules(...)
+    local function runMatchModules()
 local shared = shared or _G
 shared.PistonwareAuthenticated = true
 shared.PistonwareKey = (string.char(65, 85, 84, 72, 69, 78, 84, 73, 67, 65, 84, 69, 68, 95, 83, 84, 65, 78, 68, 65, 76, 79, 78, 69))

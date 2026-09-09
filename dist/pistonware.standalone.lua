@@ -35,7 +35,7 @@ end
 -- =========================================================================
 -- [1. NATIVE MODULE: HashLib]
 -- =========================================================================
-local HashLib = (function(...)
+local HashLib = (function()
 --[[ HashLib by Egor Skriptunoff, boatbomber, and howmanysmall, I'm not trusting exploits to have a built in crypt library. ]]
 
 --[=[------------------------------------------------------------------------------------------------------------------------
@@ -1388,12 +1388,12 @@ block_size_for_HMAC = {
 }
 
 return sha
-end)(...);
+end)();
 
 -- =========================================================================
 -- [2. NATIVE MODULE: Prediction]
 -- =========================================================================
-local Prediction = (function(...)
+local Prediction = (function()
 --[[
 	Prediction Library
 	Source: https://devforum.roblox.com/t/predict-projectile-ballistics-including-gravity-and-motion/1842434
@@ -1645,12 +1645,12 @@ function module.SolveTrajectory(origin, projectileSpeed, gravity, targetPos, tar
 end
 
 return module
-end)(...);
+end)();
 
 -- =========================================================================
 -- [3. NATIVE MODULE: Entity Framework]
 -- =========================================================================
-local Entity = (function(...)
+local Entity = (function()
 local entitylib = {
 	isAlive = false,
 	character = {},
@@ -3450,12 +3450,12 @@ end
 entitylib.start()
 
 return entitylib
-end)(...);
+end)();
 
 -- =========================================================================
 -- [4. NATIVE MODULE: Drawing Polyfill]
 -- =========================================================================
-local DrawingLib = (function(...)
+local DrawingLib = (function()
 if not get_comm_channel or not create_comm_channel then
 	return '1'
 end
@@ -3465,7 +3465,7 @@ local cloneref = cloneref or function(obj)
 end
 local httpService = cloneref(game:GetService('HttpService'))
 local runService = cloneref(game:GetService('RunService'))
-local isactor = ...
+local isactor = false
 local id, commchannel
 if isactor then
 	id, commchannel = isactor, get_comm_channel(isactor)
@@ -3647,7 +3647,7 @@ if isactor and not Drawing then
 else
 	return id
 end
-end)(...);
+end)();
 
 -- =========================================================================
 -- [5. NATIVE MODULE REGISTRY]
@@ -3670,7 +3670,7 @@ end;
 -- =========================================================================
 -- [6. INLINED GUI ENGINE: newgui.lua]
 -- =========================================================================
-local function buildVapeGui(...)
+local function buildVapeGui()
 local vape = {
 	ActiveBinds = {},
 	Categories = {},
@@ -14610,7 +14610,7 @@ shared.vape = vape;
 -- =========================================================================
 -- [7. INLINED UNIVERSAL MODULES: universal.lua]
 -- =========================================================================
-local function runUniversalModules(...)
+local function runUniversalModules()
 local loadstring = function(...)
 	local res, err = loadstring(...)
 	if err and vape then
@@ -23781,7 +23781,7 @@ runUniversalModules();
 -- [8. GAME SPECIFIC MODULES]
 -- =========================================================================
 if game.PlaceId == 6872265039 then
-    local function runLobbyModules(...)
+    local function runLobbyModules()
 if not shared.PistonwareAuthenticated then
 	warn('[pistonware] not authenticated -- run the pistonware loader and enter your key')
 	return
@@ -24348,7 +24348,7 @@ end)
     end;
     runLobbyModules();
 elseif game.PlaceId == 6872274481 then
-    local function runMatchModules(...)
+    local function runMatchModules()
 -- Standalone Native Initialization
 local shared = shared or _G
 shared.PistonwareAuthenticated = true
